@@ -23,6 +23,7 @@ public class AprilTest extends LinearOpMode
     protected DcMotorEx right_drive2;
     protected DcMotorEx left_drive1;
     protected DcMotorEx left_drive2;
+    AprilTagProcessor tagProcessor;
     protected void initMotors() {
 
         right_drive1 = hardwareMap.get(DcMotorEx.class, "right_drive1");
@@ -38,7 +39,7 @@ public class AprilTest extends LinearOpMode
     @Override
     public void runOpMode() {
         initMotors();
-        AprilTagProcessor tagProcessor = new AprilTagProcessor.Builder()
+        tagProcessor = new AprilTagProcessor.Builder()
                 .setDrawAxes(true)
                 .setDrawCubeProjection(true)
                 .setDrawTagOutline(true)
@@ -48,6 +49,7 @@ public class AprilTest extends LinearOpMode
                 .addProcessor(tagProcessor)
                 .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
                 . setCameraResolution(new Size(640,480))
+                .enableLiveView(true)
                 .build();
        /* while (visionPortal.getCameraState() != VisionPortal.CameraState.STREAMING);
 
@@ -61,12 +63,17 @@ public class AprilTest extends LinearOpMode
 
 
         waitForStart();
-
+        boolean start = false;
         while (opModeIsActive()) {
             if(tagProcessor.getDetections().size() > 0)
             {
 
                 AprilTagDetection tag = tagProcessor.getDetections().get(0);
+                if(!start && tag != null && tagProcessor != null)
+                {
+                    start = true;
+                    fixBot(1.03f, 22, -4);
+                }
                 telemetry.addLine(String.format("XYZ %6.2f %6.2f %6.2f", tag.ftcPose.x, tag.ftcPose.y, tag.ftcPose.z));
                 telemetry.addData("bearing", tag.ftcPose.bearing);
                 telemetry.addData("yaw", tag.ftcPose.yaw);
@@ -82,42 +89,59 @@ public class AprilTest extends LinearOpMode
         }
 
     }
-    protected void fixBot(float TargetX, float TargetY, float TargetYaw, AprilTagDetection tag)
+    protected void fixBot(float TargetX, float TargetY, float TargetYaw)
     {
-        int PosNeg = (tag.ftcPose.bearing > 180) ? -1 : 1;
-        double InitialX = tag.ftcPose.x;
-        double horizontal;
-        while (TargetX != tag.ftcPose.x)
-        {
-            horizontal = (tag.ftcPose.x/InitialX)*PosNeg;
-            right_drive1.setPower(-horizontal);
-            right_drive2.setPower(horizontal);
-            left_drive1.setPower(horizontal);
-            left_drive2.setPower(-horizontal);
-        }
-        PosNeg = (tag.ftcPose.yaw > 180) ? -1 : 1;
+        AprilTagDetection tag = tagProcessor.getDetections().get(0);
+        int PosNeg = (tag.ftcPose.yaw < 0) ? 1 : -1;
         double InitialYaw = tag.ftcPose.yaw;
         double pivot;
-        while (TargetYaw != tag.ftcPose.yaw)
+
+        while (Math.abs(TargetYaw-tag.ftcPose.yaw) > 1)
         {
-            pivot = (tag.ftcPose.yaw/InitialYaw)*PosNeg;
-            right_drive1.setPower(-pivot);
-            right_drive2.setPower(-pivot);
-            left_drive1.setPower(pivot);
-            left_drive2.setPower(pivot);
+            if(tagProcessor.getDetections().size() > 0) {
+                tag = tagProcessor.getDetections().get(0);
+                PosNeg = (tag.ftcPose.yaw < 0) ? 1 : -1;
+                pivot = (Math.abs(Math.abs(tag.ftcPose.yaw)-Math.abs(TargetYaw))/90)*PosNeg;
+                right_drive1.setPower(-pivot);
+                right_drive2.setPower(-pivot);
+                left_drive1.setPower(pivot);
+                left_drive2.setPower(pivot);
+            }
         }
+        tag = tagProcessor.getDetections().get(0);
+        PosNeg = (tag.ftcPose.x > 0) ? 1 : -1;
+        double InitialX = tag.ftcPose.x;
+        double horizontal;
+        while (Math.abs(Math.abs(TargetX)-Math.abs(tag.ftcPose.x)) > 0.2)
+        {
+            if(tagProcessor.getDetections().size() > 0) {
+                tag = tagProcessor.getDetections().get(0);
+                horizontal = (Math.abs(tag.ftcPose.x / InitialX) * PosNeg) * 0.6;
+                right_drive1.setPower(-horizontal);
+                right_drive2.setPower(horizontal);
+                left_drive1.setPower(horizontal);
+                left_drive2.setPower(-horizontal);
+            }
+        }
+        tag = tagProcessor.getDetections().get(0);
         PosNeg = (TargetY > tag.ftcPose.y) ? -1 : 1;
         double InitialY = tag.ftcPose.y;
         double vertical;
-        while (TargetY != tag.ftcPose.y)
+        while (Math.abs(TargetY-tag.ftcPose.y) > 0.2)
         {
-            vertical = (tag.ftcPose.y/InitialY)*PosNeg;
-            right_drive1.setPower(vertical);
-            right_drive2.setPower(vertical);
-            left_drive1.setPower(vertical);
-            left_drive2.setPower(vertical);
+            if(tagProcessor.getDetections().size() > 0) {
+                tag = tagProcessor.getDetections().get(0);
+                vertical = ((tag.ftcPose.y / InitialY) * PosNeg) * 0.6;
+                right_drive1.setPower(vertical);
+                right_drive2.setPower(vertical);
+                left_drive1.setPower(vertical);
+                left_drive2.setPower(vertical);
+            }
         }
-
+        right_drive1.setPower(0);
+        right_drive2.setPower(0);
+        left_drive1.setPower(0);
+        left_drive2.setPower(0);
     }
 
 }
