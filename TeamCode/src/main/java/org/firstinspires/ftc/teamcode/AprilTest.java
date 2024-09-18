@@ -93,6 +93,31 @@ public class AprilTest extends LinearOpMode
     {
         AprilTagDetection tag = tagProcessor.getDetections().get(0);
         int PosNeg;
+        //test the chat gpt code
+        double yawError = TargetYaw - tag.ftcPose.yaw;
+        double yawTolerance = 1;  // Define a small tolerance for yaw
+        double pivotPower;
+
+        while (Math.abs(yawError) > yawTolerance) {
+            tag = tagProcessor.getDetections().get(0);
+            // Update yaw error
+            yawError = TargetYaw - tag.ftcPose.yaw;
+
+            // Proportional control to smooth the yaw adjustment
+            double kP = 0.01;  // Proportional control constant (adjust this for better results)
+            pivotPower = kP * yawError;
+
+            // Ensure the power stays within motor limits [-1, 1]
+            pivotPower = Math.max(-1, Math.min(1, pivotPower));
+
+            // Set motor powers for turning the robot
+            right_drive1.setPower(-pivotPower);
+            right_drive2.setPower(-pivotPower);
+            left_drive1.setPower(pivotPower);
+            left_drive2.setPower(pivotPower);
+
+        }
+        /*
         double pivot;
         while (Math.abs(TargetYaw-tag.ftcPose.yaw) > 1)
         {
@@ -105,7 +130,7 @@ public class AprilTest extends LinearOpMode
                 left_drive1.setPower(pivot);
                 left_drive2.setPower(pivot);
             }
-        }
+        }*/
         tag = tagProcessor.getDetections().get(0);
         PosNeg = (tag.ftcPose.x > 0) ? 1 : -1;
         double InitialX = tag.ftcPose.x;
