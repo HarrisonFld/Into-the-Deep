@@ -92,10 +92,8 @@ public class AprilTest extends LinearOpMode
     protected void fixBot(float TargetX, float TargetY, float TargetYaw)
     {
         AprilTagDetection tag = tagProcessor.getDetections().get(0);
-        int PosNeg = (tag.ftcPose.yaw < 0) ? 1 : -1;
-        double InitialYaw = tag.ftcPose.yaw;
+        int PosNeg;
         double pivot;
-
         while (Math.abs(TargetYaw-tag.ftcPose.yaw) > 1)
         {
             if(tagProcessor.getDetections().size() > 0) {
