@@ -4,17 +4,15 @@ import android.util.Size;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.ExposureControl;
-import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.GainControl;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagPoseFtc;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
-
-import java.util.concurrent.TimeUnit;
 
 @Autonomous(name = "April Tag Test", group = "Auto")
 public class AprilTest extends LinearOpMode
@@ -33,6 +31,11 @@ public class AprilTest extends LinearOpMode
 
         right_drive1.setDirection(DcMotorSimple.Direction.REVERSE);
         right_drive2.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        right_drive1.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        right_drive2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        left_drive1.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        left_drive2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
 
     }
@@ -69,19 +72,27 @@ public class AprilTest extends LinearOpMode
             {
 
                 AprilTagDetection tag = tagProcessor.getDetections().get(0);
+                telemetry.addLine(String.format("XYZ %6.2f %6.2f %6.2f", this.ftcPose.x, this.ftcPose.y, this.ftcPose.z));
+                telemetry.addData("bearing", this.ftcPose.bearing);
+                telemetry.addData("yaw", this.ftcPose.yaw);
+                telemetry.addData("roll", this.ftcPose.roll);
+                telemetry.addData("range", this.ftcPose.range);
+                telemetry.addData("pitch", this.ftcPose.pitch);
+                telemetry.addData("elevation", this.ftcPose.elevation);
+                sleep(2000);
                 if(!start && tag != null && tagProcessor != null)
                 {
                     start = true;
                     fixBot(1.03f, 22, -4);
                 }
-                telemetry.addLine(String.format("XYZ %6.2f %6.2f %6.2f", tag.ftcPose.x, tag.ftcPose.y, tag.ftcPose.z));
-                telemetry.addData("bearing", tag.ftcPose.bearing);
-                telemetry.addData("yaw", tag.ftcPose.yaw);
-                telemetry.addData("roll", tag.ftcPose.roll);
-                telemetry.addData("range", tag.ftcPose.range);
-                telemetry.addData("pitch", tag.ftcPose.pitch);
-                telemetry.addData("elevation", tag.ftcPose.elevation);
-                telemetry.update();
+                telemetry.addLine(String.format("XYZ %6.2f %6.2f %6.2f", this.ftcPose.x, this.ftcPose.y, this.ftcPose.z));
+                telemetry.addData("bearing", this.ftcPose.bearing);
+                telemetry.addData("yaw", this.ftcPose.yaw);
+                telemetry.addData("roll", this.ftcPose.roll);
+                telemetry.addData("range", this.ftcPose.range);
+                telemetry.addData("pitch", this.ftcPose.pitch);
+                telemetry.addData("elevation", this.ftcPose.elevation);
+                //telemetry.update();
 
 
 
@@ -89,23 +100,42 @@ public class AprilTest extends LinearOpMode
         }
 
     }
+
+    int fixbotran = 0;
+    AprilTagPoseFtc ftcPose;
+
     protected void fixBot(float TargetX, float TargetY, float TargetYaw)
     {
         AprilTagDetection tag = tagProcessor.getDetections().get(0);
         int PosNeg;
         //test the chat gpt code
         double yawError = TargetYaw - tag.ftcPose.yaw;
-        double yawTolerance = 1;  // Define a small tolerance for yaw
+        double yawTolerance = 0.01;  // Define a small tolerance for yaw
         double pivotPower;
 
         while (Math.abs(yawError) > yawTolerance) {
+            if (tagProcessor.getDetections().isEmpty()) {
+                right_drive1.setPower(0);
+                right_drive2.setPower(0);
+                left_drive1.setPower(0);
+                left_drive2.setPower(0);
+                 break;
+            }
             tag = tagProcessor.getDetections().get(0);
+            this.ftcPose = tag.ftcPose;
+            PosNeg = (tag.ftcPose.yaw < 0 ? 1 : -1);
             // Update yaw error
             yawError = TargetYaw - tag.ftcPose.yaw;
 
+
+//            telemetry
+            telemetry.addData("yawError", yawError);
+            telemetry.addData("current yaw: ", tag.ftcPose.yaw);
+            telemetry.update();
+
             // Proportional control to smooth the yaw adjustment
-            double kP = 0.01;  // Proportional control constant (adjust this for better results)
-            pivotPower = kP * yawError;
+            double kP = 1.55;  // Proportional control constant (adjust this for better results)
+            pivotPower = (kP * yawError) * PosNeg;
 
             // Ensure the power stays within motor limits [-1, 1]
             pivotPower = Math.max(-1, Math.min(1, pivotPower));
@@ -131,30 +161,68 @@ public class AprilTest extends LinearOpMode
                 left_drive2.setPower(pivot);
             }
         }*/
-        tag = tagProcessor.getDetections().get(0);
-        PosNeg = (tag.ftcPose.x > 0) ? 1 : -1;
-        double InitialX = tag.ftcPose.x;
+        sleep(1500);
+//        tag = tagProcessor.getDetections().get(0);
+        PosNeg = (this.ftcPose.x > 0) ? 1 : -1;
+        double InitialX = this.ftcPose.x;
         double horizontal;
-        while (Math.abs(Math.abs(TargetX)-Math.abs(tag.ftcPose.x)) > 0.2)
+        boolean pitchFlagged  = false;
+        while (Math.abs(Math.abs(TargetX)-Math.abs(this.ftcPose.x)) > 0.2)
         {
             if(tagProcessor.getDetections().size() > 0) {
+                if (!pitchFlagged) {
+                    pitchFlagged = true;
+                }
                 tag = tagProcessor.getDetections().get(0);
+                this.ftcPose = tag.ftcPose;
                 horizontal = (Math.abs(tag.ftcPose.x / InitialX) * PosNeg) * 0.6;
+                right_drive1.setPower(-horizontal);
+                right_drive2.setPower(horizontal);
+                left_drive1.setPower(horizontal);
+                left_drive2.setPower(-horizontal);
+            } else {
+                if (pitchFlagged) {
+                    right_drive1.setPower(0);
+                    right_drive2.setPower(0);
+                    left_drive1.setPower(0);
+                    left_drive2.setPower(0);
+                    break;
+                }
+                horizontal = (Math.abs(this.ftcPose.x / InitialX) * PosNeg) * 0.6;
                 right_drive1.setPower(-horizontal);
                 right_drive2.setPower(horizontal);
                 left_drive1.setPower(horizontal);
                 left_drive2.setPower(-horizontal);
             }
         }
-        tag = tagProcessor.getDetections().get(0);
-        PosNeg = (TargetY > tag.ftcPose.y) ? -1 : 1;
-        double InitialY = tag.ftcPose.y;
+        sleep(1500);
+//        tag = tagProcessor.getDetections().get(0);
+        PosNeg = (TargetY > this.ftcPose.y) ? -1 : 1;
+        double InitialY = this.ftcPose.y;
         double vertical;
-        while (Math.abs(TargetY-tag.ftcPose.y) > 0.2)
+        boolean rollFlagged = false;
+        while (Math.abs(TargetY-this.ftcPose.y) > 0.2)
         {
             if(tagProcessor.getDetections().size() > 0) {
+                if (!rollFlagged) {
+                    rollFlagged = true;
+                }
                 tag = tagProcessor.getDetections().get(0);
+                this.ftcPose = tag.ftcPose;
                 vertical = ((tag.ftcPose.y / InitialY) * PosNeg) * 0.6;
+                right_drive1.setPower(vertical);
+                right_drive2.setPower(vertical);
+                left_drive1.setPower(vertical);
+                left_drive2.setPower(vertical);
+            } else {
+                if (rollFlagged) {
+                    right_drive1.setPower(0);
+                    right_drive2.setPower(0);
+                    left_drive1.setPower(0);
+                    left_drive2.setPower(0);
+                    break;
+                }
+                vertical = ((this.ftcPose.y / InitialY) * PosNeg) * 0.6;
                 right_drive1.setPower(vertical);
                 right_drive2.setPower(vertical);
                 left_drive1.setPower(vertical);
